@@ -47,7 +47,7 @@ No signup. No credit card. No rate‑limited demo tier. Clone it, `npm install`,
 - 🏦 **Macro dashboard** — live US Treasury yield curve, VIX, and major index/commodity proxies
 - 💼 **Portfolio tracker** — log buy/sell transactions, track average cost, realized & unrealized P&L (persisted in SQLite)
 - 📅 **Calendar** — economic events (Fed, ECB, CPI, NFP and more) with consensus forecast, previous reading and, for the major US/EU releases, the actual outcome; plus a per‑watchlist earnings calendar with click‑through history showing forecast vs. actual EPS for the last several quarters and the stock's next‑day price move
-- 🤖 **AI assistant** (optional) — ask questions about the symbol you're looking at, powered by Claude, fully context‑aware of the terminal's current data
+- 🤖 **AI assistant** (optional) — ask questions about the symbol you're looking at, fully context‑aware of the terminal's current data; answers stream in as they are generated. Runs on Anthropic Claude or on any self‑hosted server that speaks the Anthropic Messages API (llama.cpp, llama‑swap, LiteLLM)
 - ⚡ **Near real‑time updates** — quotes and indexes refresh every second with a subtle flash on change, so you always know what just moved
 - ⌨️ **Keyboard shortcuts** everywhere — `⌘K` to search, `⌥1`–`⌥9` to add any widget
 
@@ -128,12 +128,42 @@ That's it — no `.env` file required to get a fully working terminal.
 
 ### Optional: AI assistant
 
+With an Anthropic key:
+
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...
 npm run dev
 ```
 
-Without a key, everything else still works — the AI widget just shows a friendly "unavailable" message instead of failing.
+With a self‑hosted model — anything that serves the Anthropic Messages API
+(`/v1/messages`): [llama.cpp](https://github.com/ggml-org/llama.cpp)'s
+`llama-server`, [llama-swap](https://github.com/mostlygeek/llama-swap), or a
+[LiteLLM](https://github.com/BerriAI/litellm) proxy in front of another provider:
+
+```bash
+export ANTHROPIC_BASE_URL=http://localhost:8080      # your server
+export ANTHROPIC_AUTH_TOKEN=whatever-it-expects       # sent as a Bearer token; any value if it has no auth
+export AI_MODEL=qwen3-27b                            # a model name that server actually serves
+export AI_MAX_TOKENS=4000                            # optional: keep local answers quick (default 16000)
+export AI_THINKING=off                               # optional: skip the reasoning pass (default adaptive)
+npm run dev
+```
+
+| Variable | Meaning |
+|---|---|
+| `ANTHROPIC_API_KEY` | Anthropic key, sent as `x-api-key` |
+| `ANTHROPIC_AUTH_TOKEN` | Bearer token for gateways and self‑hosted servers (either this or the key is required) |
+| `ANTHROPIC_BASE_URL` | Endpoint; default is Anthropic |
+| `AI_MODEL` | Model id on every request; default `claude-opus-4-8` |
+| `AI_MAX_TOKENS` | Response budget; default `16000` |
+| `AI_THINKING` | `adaptive` (default) or `off` |
+
+Replies stream into the widget as the model produces them; the widget gives up
+if nothing arrives for two minutes and offers **STOP** while a reply is in
+flight. Without any credential, everything else still works — the AI widget
+just shows a friendly "unavailable" message instead of failing. In Docker, a
+model server on the host machine is reachable as
+`ANTHROPIC_BASE_URL=http://host.docker.internal:<port>`.
 
 ### Security defaults
 
@@ -162,7 +192,7 @@ Portfolio data persists in the `terminal-data` volume (SQLite, WAL mode). Ports 
 | Charts | `lightweight-charts` (candles/indicators) · D3 (heatmap treemap) · Recharts (yield curve) |
 | Backend | Node.js · Express · TypeScript |
 | Database | SQLite (`better-sqlite3`, WAL mode) |
-| AI | Anthropic Claude (optional) |
+| AI | Anthropic Claude, or any Anthropic‑compatible endpoint such as llama.cpp / llama‑swap / LiteLLM (optional) |
 
 <br/>
 
