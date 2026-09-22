@@ -3,6 +3,7 @@ import cors from "cors";
 import { marketRouter } from "./routes/market.js";
 import { portfolioRouter } from "./routes/portfolio.js";
 import { aiRouter } from "./routes/ai.js";
+import { aiConfigured } from "./ai-config.js";
 import { allStats } from "./providers/registry.js";
 import { requireApiKey } from "./auth.js";
 import { rateLimit } from "./rateLimit.js";
@@ -49,7 +50,7 @@ app.get("/api/status", (_req, res) => {
     ok: true,
     time: new Date().toISOString(),
     providers: allStats(),
-    ai: Boolean(process.env.ANTHROPIC_API_KEY),
+    ai: aiConfigured(),
   });
 });
 

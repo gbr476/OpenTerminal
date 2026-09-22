@@ -13,6 +13,8 @@ async function proxy(req: NextRequest, path: string[]): Promise<NextResponse> {
   const headers = new Headers();
   const contentType = req.headers.get("content-type");
   if (contentType) headers.set("content-type", contentType);
+  const accept = req.headers.get("accept");
+  if (accept) headers.set("accept", accept);
   if (apiKey) headers.set("x-api-key", apiKey);
   // Relayed, not fabricated: only meaningful (and only trusted by the API)
   // when TRUST_PROXY=1 is set there — see server/src/index.ts.
@@ -28,10 +30,25 @@ async function proxy(req: NextRequest, path: string[]): Promise<NextResponse> {
     cache: "no-store",
   });
 
+  const upstreamType = upstream.headers.get("content-type") ?? "application/json";
+
+  // Server-sent events (the AI chat) are passed through as they arrive;
+  // buffering them would defeat the point of streaming.
+  if (upstreamType.includes("text/event-stream")) {
+    return new NextResponse(upstream.body, {
+      status: upstream.status,
+      headers: {
+        "content-type": upstreamType,
+        "cache-control": "no-cache, no-transform",
+        "x-accel-buffering": "no",
+      },
+    });
+  }
+
   const body = upstream.status === 204 ? null : await upstream.arrayBuffer();
   return new NextResponse(body, {
     status: upstream.status,
-    headers: { "content-type": upstream.headers.get("content-type") ?? "application/json" },
+    headers: { "content-type": upstreamType },
   });
 }
 
